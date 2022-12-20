@@ -2,7 +2,9 @@
 #include "clazz/clazz.h"
 #include "colors.h"
 #include "utils.h"
+#include <fmt/ranges.h>
 #include <iostream>
+#include <ranges>
 #include <stdexcept>
 
 using namespace clazz;
@@ -23,6 +25,7 @@ constexpr std::string address(const std::string& str) { return bright_red(str); 
 constexpr std::string reference(const std::string& str) { return bright_green(str); }
 constexpr std::string pretty(const std::string& str) { return bright_green(str); }
 constexpr std::string magic(const std::string& str) { return bright_red(str); }
+constexpr std::string annotation(const std::string& str) { return bright_yellow(str); }
 
 constexpr std::string member(const not_str auto& str) { return cyan(std::to_string(str)); }
 constexpr std::string desc(const not_str auto& str) { return magenta(std::to_string(str)); }
@@ -36,6 +39,14 @@ constexpr std::string address(const not_str auto& str) { return bright_red(std::
 constexpr std::string reference(const not_str auto& str) { return bright_green(std::to_string(str)); }
 constexpr std::string pretty(const not_str auto& str) { return bright_green(std::to_string(str)); }
 constexpr std::string magic(const not_str auto& str) { return magic(std::to_string(str)); }
+constexpr std::string annotation(const not_str auto& str) { return annotation(std::to_string(str)); }
+
+template <typename... Ts>
+constexpr std::string fmt_constant(const fmt::format_string<Ts...>& a, Ts&&... args)
+{
+    return constant(fmt::format(a, std::forward<Ts>(args)...));
+}
+
 inline static constexpr auto TAB_SIZE = 2;
 
 constexpr std::string flags_to_string(const auto& map, auto flags)
@@ -94,33 +105,30 @@ constexpr std::string dump_ref(const class_file& clazz, utf8_ref ref) { return e
 constexpr std::string dump_info(const class_file&, const utf8_info& info) { return escape_str(info.bytes); }
 constexpr std::string dump_info(const utf8_info& info) { return escape_str(info.bytes); }
 
-constexpr std::string dump_ref(const class_file& clazz, integer_ref ref) { return constant(fmt::format("{}i", ref.get(clazz).value)); }
-constexpr std::string dump_info(const class_file&, integer_info info) { return constant(fmt::format("{}i", info.value)); }
-constexpr std::string dump_info(integer_info info) { return constant(fmt::format("{}i", info.value)); }
+constexpr std::string dump_ref(const class_file& clazz, integer_ref ref) { return fmt_constant("{}i", ref.get(clazz).value); }
+constexpr std::string dump_info(const class_file&, integer_info info) { return fmt_constant("{}i", info.value); }
+constexpr std::string dump_info(integer_info info) { return fmt_constant("{}i", info.value); }
 
-constexpr std::string dump_ref(const class_file& clazz, float_ref ref) { return constant(fmt::format("{}f", ref.get(clazz).value)); }
-constexpr std::string dump_info(const class_file&, float_info info) { return constant(fmt::format("{}f", info.value)); }
-constexpr std::string dump_info(float_info info) { return constant(fmt::format("{}f", info.value)); }
+constexpr std::string dump_ref(const class_file& clazz, float_ref ref) { return fmt_constant("{}f", ref.get(clazz).value); }
+constexpr std::string dump_info(const class_file&, float_info info) { return fmt_constant("{}f", info.value); }
+constexpr std::string dump_info(float_info info) { return fmt_constant("{}f", info.value); }
 
-constexpr std::string dump_ref(const class_file& clazz, long_ref ref) { return constant(fmt::format("{}l", ref.get(clazz).value)); }
-constexpr std::string dump_info(const class_file&, long_info info) { return constant(fmt::format("{}l", info.value)); }
-constexpr std::string dump_info(long_info info) { return constant(fmt::format("{}l", info.value)); }
+constexpr std::string dump_ref(const class_file& clazz, long_ref ref) { return fmt_constant("{}l", ref.get(clazz).value); }
+constexpr std::string dump_info(const class_file&, long_info info) { return fmt_constant("{}l", info.value); }
+constexpr std::string dump_info(long_info info) { return fmt_constant("{}l", info.value); }
 
-constexpr std::string dump_ref(const class_file& clazz, double_ref ref) { return constant(fmt::format("{}d", ref.get(clazz).value)); }
-constexpr std::string dump_info(const class_file&, double_info info) { return constant(fmt::format("{}d", info.value)); }
-constexpr std::string dump_info(double_info info) { return constant(fmt::format("{}d", info.value)); }
+constexpr std::string dump_ref(const class_file& clazz, double_ref ref) { return fmt_constant("{}d", ref.get(clazz).value); }
+constexpr std::string dump_info(const class_file&, double_info info) { return fmt_constant("{}d", info.value); }
+constexpr std::string dump_info(double_info info) { return fmt_constant("{}d", info.value); }
 
 constexpr std::string dump_ref(const class_file& clazz, class_ref ref) { return type(dump_ref(clazz, ref.get(clazz).name_index)); }
 constexpr std::string dump_info(const class_file& clazz, class_info ref) { return type(dump_ref(clazz, ref.name_index)); }
 
 constexpr std::string dump_ref(const class_file& clazz, string_ref ref)
 {
-    return constant(fmt::format("\"{}\"", dump_ref(clazz, ref.get(clazz).string_index)));
+    return fmt_constant("\"{}\"", dump_ref(clazz, ref.get(clazz).string_index));
 }
-constexpr std::string dump_info(const class_file& clazz, string_info info)
-{
-    return constant(fmt::format("\"{}\"", dump_ref(clazz, info.string_index)));
-}
+constexpr std::string dump_info(const class_file& clazz, string_info info) { return fmt_constant("\"{}\"", dump_ref(clazz, info.string_index)); }
 
 constexpr std::string dump_ref(const class_file& clazz, fieldref_ref ref)
 {
@@ -568,95 +576,246 @@ static void dump_bootstrap_methods_attribute(const class_file& clazz, const boot
     s.pop();
 }
 
+/*
+ * B 	byte 	const_value_index 	CONSTANT_Integer
+C 	char 	const_value_index 	CONSTANT_Integer
+D 	double 	const_value_index 	CONSTANT_Double
+F 	float 	const_value_index 	CONSTANT_Float
+I 	int 	const_value_index 	CONSTANT_Integer
+J 	long 	const_value_index 	CONSTANT_Long
+
+
+S 	short 	const_value_index 	CONSTANT_Integer
+Z 	boolean 	const_value_index 	CONSTANT_Integer
+s 	String 	const_value_index 	CONSTANT_Utf8
+e 	Enum class 	enum_const_value 	Not applicable
+c 	Class 	class_info_index 	Not applicable
+@ 	Annotation interface 	annotation_value 	Not applicable
+[
+ */
+
+static std::string dump_annotation(const class_file& clazz, const annotations::annotation& a);
+
+static std::string dump_element_value(const class_file& clazz, const annotations::element_value& a)
+{
+    switch (a.tag)
+    {
+    case 'B':
+        return fmt_constant("{}b", std::get<integer_ref>(a.value).get(clazz).value);
+    case 'C': {
+        int value = std::get<integer_ref>(a.value).get(clazz).value;
+        if (isprint(value))
+            return fmt_constant("'{}'", (char)value);
+        return fmt_constant("'\\u{:x}'", value);
+    }
+    case 'D':
+        return dump_ref(clazz, std::get<double_ref>(a.value));
+    case 'F':
+        return dump_ref(clazz, std::get<float_ref>(a.value));
+    case 'I':
+        return dump_ref(clazz, std::get<integer_ref>(a.value));
+    case 'J':
+        return dump_ref(clazz, std::get<long_ref>(a.value));
+    case 'S':
+        return fmt::format("({}){}", type("short"), constant(std::get<integer_ref>(a.value).get(clazz).value));
+    case 'Z':
+        return constant(std::get<integer_ref>(a.value).get(clazz).value ? "true" : "false");
+    case 's':
+        return fmt_constant("\"{}\"", dump_ref(clazz, std::get<utf8_ref>(a.value)));
+    case 'e': {
+        auto info = std::get<annotations::element_value::enum_const_value>(a.value);
+        return fmt::format("{}.{}", type(dump_ref(clazz, info.type_name_index)), member(dump_ref(clazz, info.const_name_index)));
+    }
+    case 'c':
+        return fmt::format("{}.{}", type(demangle_type(dump_ref(clazz, std::get<utf8_ref>(a.value)))), key("class"));
+    case '@':
+        return dump_annotation(clazz, std::get<annotations::annotation>(a.value));
+    case '[': {
+        const auto& arr = std::get<std::vector<annotations::element_value>>(a.value);
+        std::string out = "{";
+        for (size_t i = 0; i < arr.size(); i++)
+        {
+            out += dump_element_value(clazz, arr[i]);
+            if (i + 1 != arr.size())
+                out += ", ";
+        }
+        return out + "}";
+    }
+    }
+    __builtin_unreachable();
+}
+
+static std::string dump_annotation(const class_file& clazz, const annotations::annotation& a)
+{
+    std::string out = annotation('@' + demangle_type(dump_ref(clazz, a.type_index)));
+    out += '(';
+    for (size_t i = 0; i < a.entries.size(); i++)
+    {
+        out += member(dump_ref(clazz, a.entries[i].name)) + '=' + dump_element_value(clazz, a.entries[i].value);
+        if (i + 1 != a.entries.size())
+            out += ", ";
+    }
+    return out + ')';
+}
+
+static std::string dump_type_annotation(const class_file& clazz, const annotations::type_annotation& a)
+{
+    std::string out = annotation('@' + demangle_type(dump_ref(clazz, a.type_index)));
+    out += '(';
+    for (size_t i = 0; i < a.entries.size(); i++)
+    {
+        out += member(dump_ref(clazz, a.entries[i].first)) + '=' + dump_element_value(clazz, a.entries[i].second);
+        if (i + 1 != a.entries.size())
+            out += ", ";
+    }
+    return out + ')';
+}
+
 static void dump_attribute(const class_file& clazz, const attribute& attr, output_consumer& s)
 {
-    std::visit(
-        overload{[&s, &clazz](const attribute_info& info) { s.w("- {} (unknown)", dump_ref(clazz, info.attribute_name_index)); },
-                 [&clazz, &s](const code_attribute& attr) { dump_code_attribute(clazz, attr, s); },
-                 [&s, &clazz](const signature_attribute& attr) { s.w("- Signature: {}", type(escape_str(attr.signature_index.get(clazz).bytes))); },
-                 [&s, &clazz](const source_file_attribute& attr) { s.w("- SourceFile: {}", escape_str(attr.sourcefile_index.get(clazz).bytes)); },
-                 [&s, &clazz](const lvt_attribute& attr) {
-                     s.w("- LocalVariableTable");
-                     s.push();
-                     for (const auto& i : attr.lvt)
-                     {
-                         s.w("{} {} {} ({}) [{}, {}) ({} bytes)", i.index, member(escape_str(i.name_index.get(clazz).bytes)),
-                             desc(escape_str(i.descriptor_index.get(clazz).bytes)), pretty_demangle(clazz, i.descriptor_index), i.start_pc,
-                             address_ref(i.start_pc.ip + i.length + 1), constant(i.length));
-                     }
-                     s.pop();
-                 },
-                 [&clazz, &s](const inner_class_attribute& attr) {
-                     s.w("- InnerClasses");
-                     s.push();
-                     for (const auto& i : attr.inner_classes)
-                     {
-                         s.w("{}{} {} {}", flags_to_string(INNER_CLASS_FLAGS_NAMES, i.inner_class_access_flags),
-                             type(dump_ref(clazz, i.inner_class_info_index.get(clazz).name_index)),
-                             type(i.inner_name_index.has_value() ? dump_info(clazz, i.inner_name_index.get(clazz)) : "<anon>"),
-                             type(i.outer_class_info_index.has_value() ? dump_info(clazz, i.outer_class_info_index.get(clazz)) : "<anon>"));
-                     }
-                     s.pop();
-                 },
-                 [&s](const lineno_attribute& attr) {
-                     s.w("- LineNumberTable");
-                     s.push();
+    std::visit(overload{
+                   [&s, &clazz](const attribute_info& info) { s.w("- {} (unknown)", dump_ref(clazz, info.attribute_name_index)); },
+                   [&clazz, &s](const code_attribute& attr) { dump_code_attribute(clazz, attr, s); },
+                   [&s, &clazz](const signature_attribute& attr) { s.w("- Signature: {}", type(escape_str(attr.signature_index.get(clazz).bytes))); },
+                   [&s, &clazz](const source_file_attribute& attr) { s.w("- SourceFile: {}", escape_str(attr.sourcefile_index.get(clazz).bytes)); },
+                   [&s, &clazz](const lvt_attribute& attr) {
+                       s.w("- LocalVariableTable");
+                       s.push();
+                       for (const auto& i : attr.lvt)
+                       {
+                           s.w("{} {} {} ({}) [{}, {}) ({} bytes)", i.index, member(escape_str(i.name_index.get(clazz).bytes)),
+                               desc(escape_str(i.descriptor_index.get(clazz).bytes)), pretty_demangle(clazz, i.descriptor_index), i.start_pc,
+                               address_ref(i.start_pc.ip + i.length + 1), constant(i.length));
+                       }
+                       s.pop();
+                   },
+                   [&clazz, &s](const inner_class_attribute& attr) {
+                       s.w("- InnerClasses");
+                       s.push();
+                       for (const auto& i : attr.inner_classes)
+                       {
+                           s.w("{}{} {} {}", flags_to_string(INNER_CLASS_FLAGS_NAMES, i.inner_class_access_flags),
+                               type(dump_ref(clazz, i.inner_class_info_index.get(clazz).name_index)),
+                               type(i.inner_name_index.has_value() ? dump_info(clazz, i.inner_name_index.get(clazz)) : "<anon>"),
+                               type(i.outer_class_info_index.has_value() ? dump_info(clazz, i.outer_class_info_index.get(clazz)) : "<anon>"));
+                       }
+                       s.pop();
+                   },
+                   [&s](const lineno_attribute& attr) {
+                       s.w("- LineNumberTable");
+                       s.push();
 
-                     for (const auto& i : attr.line_number_table)
-                         s.w("{} {}", constant(i.line_number), i.start_pc);
-                     s.pop();
-                 },
-                 [&s, &clazz](const stack_map_table_attribute& attr) {
-                     s.w("- StackMapTable");
-                     s.push();
-                     dump_stack_map_table(clazz, attr, s);
-                     s.pop();
-                 },
-                 [&s, &clazz](const bootstrap_methods_attribute& attr) { dump_bootstrap_methods_attribute(clazz, attr, s); },
-                 [&clazz, &s](const lvt_type_attribute& attr) {
-                     s.w("- LocalVariableTypeTable");
-                     s.push();
-                     for (const auto& i : attr.lvt)
-                         s.w("{} {} {} [{}, {}) ({} bytes)", i.index, member(escape_str(i.name_index.get(clazz).bytes)),
-                             desc(escape_str(i.signature_index.get(clazz).bytes)), i.start_pc, address_ref(i.start_pc.ip + i.length + 1),
-                             constant(i.length));
-                     s.pop();
-                 },
-                 [&s, &clazz](const nest_members_attribute& attr) {
-                     s.w("- NestMembers");
-                     s.push();
-                     for (auto i : attr.classes)
-                         s.w("{}", dump_ref(clazz, i));
-                     s.pop();
-                 },
-                 [&s, &clazz](const nest_host_attribute& attr) { s.w("- NestHost {}", dump_ref(clazz, attr.host_class_index)); },
-                 [&s, &clazz](const constant_value_attribute& attr) {
-                     s.w("- ConstantValue {}", std::visit([&clazz](auto i) { return dump_info(clazz, i); }, attr.constantvalue_index.get(clazz)));
-                 },
-                 [&s, &clazz](const exceptions_attribute& attr) {
-                     s.w("- Exceptions");
-                     s.push();
-                     for (auto i : attr.exception_index_table)
-                         s.w("{}", dump_ref(clazz, i));
-                     s.pop();
-                 },
-                 [&s, &clazz](const enclosing_method_attribute& attr) {
-                     s.w("- EnclosingMethod");
-                     s.push();
-                     s.w("{}/{}", dump_ref(clazz, attr.class_index),
-                         attr.method_index.has_value()
-                             ? fmt::format("{}{} {}", member(dump_ref(clazz, attr.method_index.get(clazz).descriptor_index)),
-                                           desc(dump_ref(clazz, attr.method_index.get(clazz).descriptor_index)),
-                                           pretty_demangle(clazz, attr.method_index.get(clazz).descriptor_index))
-                             : "<no method>");
-                     s.pop();
-                 }},
-        attr);
+                       for (const auto& i : attr.line_number_table)
+                           s.w("{} {}", constant(i.line_number), i.start_pc);
+                       s.pop();
+                   },
+                   [&s, &clazz](const stack_map_table_attribute& attr) {
+                       s.w("- StackMapTable");
+                       s.push();
+                       dump_stack_map_table(clazz, attr, s);
+                       s.pop();
+                   },
+                   [&s, &clazz](const bootstrap_methods_attribute& attr) { dump_bootstrap_methods_attribute(clazz, attr, s); },
+                   [&clazz, &s](const lvt_type_attribute& attr) {
+                       s.w("- LocalVariableTypeTable");
+                       s.push();
+                       for (const auto& i : attr.lvt)
+                           s.w("{} {} {} [{}, {}) ({} bytes)", i.index, member(escape_str(i.name_index.get(clazz).bytes)),
+                               desc(escape_str(i.signature_index.get(clazz).bytes)), i.start_pc, address_ref(i.start_pc.ip + i.length + 1),
+                               constant(i.length));
+                       s.pop();
+                   },
+                   [&s, &clazz](const nest_members_attribute& attr) {
+                       s.w("- NestMembers");
+                       s.push();
+                       for (auto i : attr.classes)
+                           s.w("{}", dump_ref(clazz, i));
+                       s.pop();
+                   },
+                   [&s, &clazz](const nest_host_attribute& attr) { s.w("- NestHost {}", dump_ref(clazz, attr.host_class_index)); },
+                   [&s, &clazz](const constant_value_attribute& attr) {
+                       s.w("- ConstantValue {}", std::visit([&clazz](auto i) { return dump_info(clazz, i); }, attr.constantvalue_index.get(clazz)));
+                   },
+                   [&s, &clazz](const exceptions_attribute& attr) {
+                       s.w("- Exceptions");
+                       s.push();
+                       for (auto i : attr.exception_index_table)
+                           s.w("{}", dump_ref(clazz, i));
+                       s.pop();
+                   },
+                   [&s, &clazz](const enclosing_method_attribute& attr) {
+                       s.w("- EnclosingMethod");
+                       s.push();
+                       s.w("{}/{}", dump_ref(clazz, attr.class_index),
+                           attr.method_index.has_value()
+                               ? fmt::format("{}{} {}", member(dump_ref(clazz, attr.method_index.get(clazz).descriptor_index)),
+                                             desc(dump_ref(clazz, attr.method_index.get(clazz).descriptor_index)),
+                                             pretty_demangle(clazz, attr.method_index.get(clazz).descriptor_index))
+                               : "<no method>");
+                       s.pop();
+                   },
+                   [&s, &clazz](const runtime_invisible_type_annotations_attribute& attr) {
+                       s.w("- RuntimeInvisibleTypeAnnotations");
+                       s.push();
+                       for (const auto& i : attr.annotations)
+                           s.w(dump_type_annotation(clazz, i));
+                       s.pop();
+                   },
+                   [&s, &clazz](const runtime_invisible_parameter_annotations_attribute& attr) {
+                       s.w("- RuntimeInvisibleParameterAnnotations");
+                       s.push();
+                       size_t index = 0;
+                       for (const auto& i : attr.annotations)
+                       {
+                           s.w("arg {}", index++);
+                           s.push();
+                           for (const auto& j : i)
+                               s.w(dump_annotation(clazz, j));
+                           s.pop();
+                       }
+                       s.pop();
+                   },
+                   [&s, &clazz](const runtime_invisible_annotations_attribute& attr) {
+                       s.w("- RuntimeInvisibleAnnotations");
+                       s.push();
+                       for (const auto& i : attr.annotations)
+                           s.w(dump_annotation(clazz, i));
+                       s.pop();
+                   },
+                   [&s, &clazz](const runtime_visible_type_annotations_attribute& attr) {
+                       s.w("- RuntimeVisibleTypeAnnotations");
+                       s.push();
+                       for (const auto& i : attr.annotations)
+                           s.w(dump_type_annotation(clazz, i));
+                       s.pop();
+                   },
+                   [&s, &clazz](const runtime_visible_parameter_annotations_attribute& attr) {
+                       s.w("- RuntimeVisibleParameterAnnotations");
+                       s.push();
+                       size_t index = 0;
+                       for (const auto& i : attr.annotations)
+                       {
+                           s.w("arg {}", index++);
+                           s.push();
+                           for (const auto& j : i)
+                               s.w(dump_annotation(clazz, j));
+                           s.pop();
+                       }
+                       s.pop();
+                   },
+                   [&s, &clazz](const runtime_visible_annotations_attribute& attr) {
+                       s.w("- RuntimeVisibleAnnotations");
+                       s.push();
+                       for (const auto& i : attr.annotations)
+                           s.w(dump_annotation(clazz, i));
+                       s.pop();
+                   },
+               },
+               attr);
 }
 
 static std::string dump_fields(const class_file& clazz)
 {
-
     output_consumer s(TAB_SIZE);
     s.w("{} ({}):", key("fields"), constant(clazz.fields.size()));
     s.push();
@@ -720,10 +879,27 @@ int main(int argc, char** argv)
         exit(-1);
     }
 
+    bool fail = false;
     for (size_t i = 1; i < argc; i++)
     {
-        std::cout << "dumping class " << argv[i] << '\n';
-        auto c = parse_class(argv[i]);
-        std::cout << dump_class_header(c) << dump_constant_pool(c) << dump_fields(c) << dump_methods(c) << dump_class_attributes(c);
+        try
+        {
+            std::cout << "dumping class " << argv[i] << '\n';
+            auto c = parse_class(argv[i]);
+            std::cout << dump_class_header(c) << dump_constant_pool(c) << dump_fields(c) << dump_methods(c) << dump_class_attributes(c);
+        }
+        catch (class_parse_error& e)
+        {
+            std::cerr << "bad class file: " << e.what() << '\n';
+            fail = true;
+        }
+        catch (std::runtime_error& e)
+        {
+            std::cerr << e.what() << '\n';
+            fail = true;
+        }
     }
+
+    if (fail)
+        exit(-1);
 }

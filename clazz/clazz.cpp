@@ -441,10 +441,79 @@ namespace clazz
         return p;
     }
 
+    static annotation parse_annotation(const class_file& clazz, byte_file& bf);
+
     static element_value parse_element_value(const class_file& clazz, byte_file& bf)
     {
         element_value value;
         value.tag = bf.read_u8();
+        switch (value.tag)
+        {
+        case 'B':
+            value.value = integer_ref(clazz, bf.read_u16());
+            break;
+        case 'C':
+            value.value = integer_ref(clazz, bf.read_u16());
+            break;
+        case 'D':
+            value.value = double_ref(clazz, bf.read_u16());
+            break;
+        case 'F':
+            value.value = float_ref(clazz, bf.read_u16());
+            break;
+        case 'I':
+            value.value = integer_ref(clazz, bf.read_u16());
+            break;
+        case 'J':
+            value.value = long_ref(clazz, bf.read_u16());
+            break;
+        case 'S':
+            value.value = integer_ref(clazz, bf.read_u16());
+            break;
+        case 'Z':
+            value.value = integer_ref(clazz, bf.read_u16());
+            break;
+        case 's':
+            value.value = utf8_ref(clazz, bf.read_u16());
+            break;
+        case 'e':
+            value.value = element_value::enum_const_value{
+                {clazz, bf.read_u16()},
+                {clazz, bf.read_u16()},
+            };
+            break;
+        case 'c':
+            value.value = utf8_ref(clazz, bf.read_u16());
+            break;
+        case '@':
+            value.value = parse_annotation(clazz, bf);
+            break;
+        case '[': {
+            uint16_t len = bf.read_u16();
+            std::vector<element_value> v;
+            v.reserve(len);
+            for (size_t i = 0; i < len; i++)
+                v.push_back(parse_element_value(clazz, bf));
+            value.value = v;
+        }
+            break;
+        default:
+            throw class_parse_error("invalid tag for element_value");
+        }
+
+        return value;
+    }
+
+    static annotation parse_annotation(const class_file& clazz, byte_file& bf)
+    {
+        annotation a;
+        a.type_index = utf8_ref{clazz, bf.read_u16()};
+        uint16_t len = bf.read_u16();
+
+        a.entries.reserve(len);
+        for (size_t i = 0; i < len; i++)
+            a.entries.push_back({{clazz, bf.read_u16()}, parse_element_value(clazz, bf)});
+        return a;
     }
 
     static type_annotation parse_type_annotation(const class_file& clazz, byte_file& bf)
@@ -501,21 +570,22 @@ namespace clazz
         case 0x4a:
         case 0x4b:
             info = type_annotation::type_argument_target{bf.read_u16(), bf.read_u8()};
+            break;
+        default:
+            throw class_parse_error("bad type annotation type");
         }
 
         annotation.target_path = parse_type_path(clazz, bf);
-        annotation.type_index = bf.read_u16();
+        annotation.type_index = { clazz, bf.read_u16() };
 
         uint16_t len = bf.read_u16();
-        annotation.element_value_pairs.reserve(len);
+        annotation.entries.reserve(len);
         for (size_t i = 0; i < len; i++)
         {
-
-            /*
-            annotation.element_value_pairs.push_back({
-            bf.read_u16(),
-
-                    });*/
+            annotation.entries.push_back({
+                { clazz, bf.read_u16()}, 
+                parse_element_value(clazz, bf)
+            });
         }
 
         return annotation;
@@ -656,6 +726,74 @@ namespace clazz
         else if (str_name == "EnclosingMethod")
         {
             return enclosing_method_attribute{class_ref(clazz, bf.read_u16()), nullable_cp_ref<name_and_type_info>(clazz, bf.read_u16())};
+        }
+        else if(str_name == "RuntimeInvisibleTypeAnnotations")
+        {
+            runtime_invisible_type_annotations_attribute attr;
+            uint16_t len = bf.read_u16();
+            attr.annotations.reserve(len);
+            for(size_t i = 0; i < len; i++)
+                attr.annotations.push_back(parse_type_annotation(clazz,bf));
+            return attr;
+        }
+        else if(str_name == "RuntimeInvisibleParameterAnnotations")
+        {
+            runtime_invisible_parameter_annotations_attribute attr;
+            uint8_t len = bf.read_u8();
+            attr.annotations.reserve(len);
+            for(size_t i = 0; i < len; i++)
+            {
+                uint16_t num_annotations = bf.read_u16();
+                std::vector<annotations::annotation> v;
+                v.reserve(num_annotations);
+                for(size_t j = 0; j < num_annotations;j++)
+                    v.push_back(parse_annotation(clazz,bf));
+                attr.annotations.emplace_back(std::move(v));
+            }
+            return attr;
+        }
+        else if(str_name == "RuntimeInvisibleAnnotations")
+        {
+            runtime_invisible_annotations_attribute attr;
+            uint16_t len = bf.read_u16();
+            attr.annotations.reserve(len);
+            for(size_t i = 0; i < len; i++)
+                    attr.annotations.push_back(parse_annotation(clazz,bf));
+            return attr;
+        }
+        else if(str_name == "RuntimeVisibleTypeAnnotations")
+        {
+            runtime_visible_type_annotations_attribute attr;
+            uint16_t len = bf.read_u16();
+            attr.annotations.reserve(len);
+            for(size_t i = 0; i < len; i++)
+                attr.annotations.push_back(parse_type_annotation(clazz,bf));
+            return attr;
+        }
+        else if(str_name == "RuntimeVisibleParameterAnnotations")
+        {
+            runtime_visible_parameter_annotations_attribute attr;
+            uint8_t len = bf.read_u8();
+            attr.annotations.reserve(len);
+            for(size_t i = 0; i < len; i++)
+            {
+                uint16_t num_annotations = bf.read_u16();
+                std::vector<annotations::annotation> v;
+                v.reserve(num_annotations);
+                for(size_t j = 0; j < num_annotations;j++)
+                    v.push_back(parse_annotation(clazz,bf));
+                attr.annotations.emplace_back(std::move(v));
+            }
+            return attr;
+        }
+        else if(str_name == "RuntimeVisibleAnnotations")
+        {
+            runtime_visible_annotations_attribute attr;
+            uint16_t len = bf.read_u16();
+            attr.annotations.reserve(len);
+            for(size_t i = 0; i < len; i++)
+                    attr.annotations.push_back(parse_annotation(clazz,bf));
+            return attr;
         }
 
         attribute_info info;

@@ -356,33 +356,31 @@ namespace clazz
             std::vector<entry> path;
         };
 
-        struct element_value;
-
         struct annotation
         {
-            utf8_info type_index;
-            std::vector<std::pair<uint16_t, element_value>> entries;
+            utf8_ref type_index;
+            struct entry;
+            std::vector<entry> entries;
         };
 
-        // TODO: fix
         struct element_value
         {
             struct enum_const_value
             {
-                uint16_t type_name_index;
-                uint16_t const_name_index;
-            };
-
-            struct class_ref
-            {
-                uint16_t class_index;
+                utf8_ref type_name_index;
+                utf8_ref const_name_index;
             };
 
             uint8_t tag;
-            std::variant<uint16_t, enum_const_value, std::vector<element_value>, class_ref, annotation> value;
+            std::variant<integer_ref, double_ref, float_ref, long_ref, utf8_ref, enum_const_value, annotation, std::vector<element_value>> value;
         };
 
-        // TODO: impl
+        struct annotation::entry
+            {
+                utf8_ref name;
+                element_value value;
+            };
+
         struct type_annotation
         {
             struct type_parameter_target
@@ -443,14 +441,14 @@ namespace clazz
                 uint8_t type_argument_index;
             };
 
-            uint8_t target_type;
             using target_info_t =
                 std::variant<type_parameter_target, supertype_target, type_parameter_bound_target, empty_target, formal_parameter_target,
                              throws_target, localvar_target, catch_target, offset_target, type_argument_target>;
+            uint8_t target_type;
             target_info_t target_info;
             type_path target_path;
-            uint16_t type_index;
-            std::vector<std::pair<uint16_t, element_value>> element_value_pairs;
+            utf8_ref type_index;
+            std::vector<std::pair<utf8_ref, element_value>> entries;
         };
     } // namespace annotations
     struct attribute_info
@@ -566,11 +564,41 @@ namespace clazz
         std::vector<annotations::type_annotation> annotations;
     };
 
+    struct runtime_invisible_parameter_annotations_attribute
+    {
+        std::vector<std::vector<annotations::annotation>> annotations;
+    };
+
+    struct runtime_invisible_annotations_attribute
+    {
+        std::vector<annotations::annotation> annotations;
+    };
+
+    struct runtime_visible_type_annotations_attribute
+    {
+        std::vector<annotations::type_annotation> annotations;
+    };
+
+    struct runtime_visible_parameter_annotations_attribute
+    {
+        std::vector<std::vector<annotations::annotation>> annotations;
+    };
+
+    struct runtime_visible_annotations_attribute
+    {
+        std::vector<annotations::annotation> annotations;
+    };
+
+
     struct code_attribute;
     using attribute =
         std::variant<attribute_info, code_attribute, signature_attribute, source_file_attribute, lvt_attribute, inner_class_attribute,
                      lineno_attribute, stack_map_table_attribute, bootstrap_methods_attribute, lvt_type_attribute, nest_members_attribute,
-                     nest_host_attribute, constant_value_attribute, exceptions_attribute, enclosing_method_attribute>;
+                     nest_host_attribute, constant_value_attribute, exceptions_attribute, enclosing_method_attribute,
+                         runtime_invisible_type_annotations_attribute, runtime_invisible_parameter_annotations_attribute,
+                         runtime_invisible_annotations_attribute, runtime_visible_type_annotations_attribute, 
+runtime_visible_parameter_annotations_attribute, runtime_visible_annotations_attribute
+                         >;
 
     inline constexpr const char* opcodes[] = {
         "nop",           "aconst_null", "iconst_m1",     "iconst_0",      "iconst_1",     "iconst_2",
